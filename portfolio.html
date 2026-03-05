@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portfolio Fund Allocation Tool</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f4f5f7;
+            color: #1e293b;
+            min-height: 100vh;
+            padding: 2rem 1rem;
+        }
+        .container { max-width: 900px; margin: 0 auto; }
+        h1 {
+            text-align: center;
+            font-size: 1.75rem;
+            margin-bottom: 1.5rem;
+            color: #0f172a;
+        }
+        .card {
+            background: #fff;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
+        .card h2 {
+            font-size: 1.15rem;
+            margin-bottom: 1rem;
+            color: #0f172a;
+        }
+
+        /* Risk Level Selector */
+        .risk-group {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1.25rem;
+        }
+        .risk-group label {
+            flex: 1;
+            text-align: center;
+            padding: 0.6rem 0;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.95rem;
+            transition: all 0.15s;
+        }
+        .risk-group input { display: none; }
+        .risk-group input:checked + label {
+            border-color: #3b82f6;
+            background: #3b82f6;
+            color: #fff;
+        }
+        .risk-group label:hover { border-color: #93c5fd; }
+
+        /* Account Cards */
+        .account-card {
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 0.75rem;
+            position: relative;
+        }
+        .account-card .remove-btn {
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
+            background: none;
+            border: none;
+            color: #94a3b8;
+            font-size: 1.25rem;
+            cursor: pointer;
+            line-height: 1;
+        }
+        .account-card .remove-btn:hover { color: #ef4444; }
+        .form-row {
+            display: flex;
+            gap: 0.75rem;
+            margin-bottom: 0.5rem;
+            flex-wrap: wrap;
+        }
+        .form-field {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            min-width: 140px;
+        }
+        .form-field label {
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: #64748b;
+            margin-bottom: 0.25rem;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
+        .form-field input, .form-field select {
+            padding: 0.5rem 0.65rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            font-size: 0.95rem;
+            outline: none;
+            transition: border-color 0.15s;
+        }
+        .form-field input:focus, .form-field select:focus {
+            border-color: #3b82f6;
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 0.6rem 1.25rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .btn-secondary {
+            background: #e2e8f0;
+            color: #475569;
+        }
+        .btn-secondary:hover { background: #cbd5e1; }
+        .btn-primary {
+            background: #3b82f6;
+            color: #fff;
+        }
+        .btn-primary:hover { background: #2563eb; }
+        .btn-row {
+            display: flex;
+            gap: 0.75rem;
+            margin-top: 0.75rem;
+        }
+
+        /* Chart */
+        .chart-wrap {
+            max-width: 400px;
+            margin: 0 auto;
+        }
+
+        /* Table */
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+        .results-table th {
+            text-align: left;
+            padding: 0.6rem 0.5rem;
+            border-bottom: 2px solid #e2e8f0;
+            color: #64748b;
+            font-size: 0.78rem;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
+        .results-table td {
+            padding: 0.6rem 0.5rem;
+            border-bottom: 1px solid #f1f5f9;
+            vertical-align: top;
+        }
+        .color-dot {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 6px;
+            vertical-align: middle;
+        }
+        .funded-by-line {
+            font-size: 0.82rem;
+            color: #475569;
+            line-height: 1.5;
+        }
+        .status-ok { color: #16a34a; }
+        .status-warn { color: #f59e0b; font-size: 0.82rem; }
+        .status-skip { color: #94a3b8; }
+
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>Portfolio Fund Allocation Tool</h1>
+
+    <!-- Input Card -->
+    <div class="card">
+        <h2>Portfolio Setup</h2>
+        <div style="margin-bottom:0.5rem; font-weight:600; font-size:0.9rem; color:#475569;">Risk Level</div>
+        <div class="risk-group">
+            <input type="radio" name="risk" id="r1" value="1">
+            <label for="r1">1</label>
+            <input type="radio" name="risk" id="r2" value="2">
+            <label for="r2">2</label>
+            <input type="radio" name="risk" id="r3" value="3" checked>
+            <label for="r3">3</label>
+            <input type="radio" name="risk" id="r4" value="4">
+            <label for="r4">4</label>
+            <input type="radio" name="risk" id="r5" value="5">
+            <label for="r5">5</label>
+        </div>
+
+        <div style="margin-bottom:0.5rem; font-weight:600; font-size:0.9rem; color:#475569;">Accounts</div>
+        <div id="accounts-container"></div>
+
+        <div class="btn-row">
+            <button class="btn btn-secondary" onclick="addAccount()">+ Add Account</button>
+            <button class="btn btn-primary" onclick="calculate()">Calculate Allocation</button>
+        </div>
+    </div>
+
+    <!-- Chart Card -->
+    <div class="card hidden" id="chart-card">
+        <h2>Allocation Overview</h2>
+        <div class="chart-wrap">
+            <canvas id="allocationChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Results Card -->
+    <div class="card hidden" id="results-card">
+        <h2>Detailed Allocation</h2>
+        <div style="overflow-x:auto;">
+            <table class="results-table" id="results-table">
+                <thead>
+                    <tr>
+                        <th>Strategy</th>
+                        <th>Target %</th>
+                        <th>Target $</th>
+                        <th>Allocated $</th>
+                        <th>Funded By</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+const STRATEGIES = ['A','B','C','D','E','F','G','H','I','J'];
+
+const TARGET_PCT = {
+    1: [4.5, 4.5, 3, 0, 1.5, 1.5, 60, 15, 4, 6],
+    2: [10.5, 10.5, 5, 4, 5, 5, 40, 10, 4, 6],
+    3: [17, 17, 7, 5, 7, 7, 25, 6, 3, 6],
+    4: [19, 19, 9, 8, 10, 10, 13, 4, 2, 6],
+    5: [24.5, 24.5, 13, 10, 11.5, 11.5, 0, 0, 0, 5]
+};
+
+const THRESHOLDS = { A: 150000, C: 150000, D: 150000, F: 100000 };
+
+const COLORS = [
+    '#3b82f6','#ef4444','#10b981','#f59e0b','#8b5cf6',
+    '#ec4899','#06b6d4','#f97316','#6366f1','#14b8a6'
+];
+
+const PRIORITY = { 'Roth IRA': 0, 'Traditional IRA': 1, 'Individual': 2, 'Joint': 2 };
+
+let accountCounter = 0;
+let chartInstance = null;
+
+function addAccount() {
+    accountCounter++;
+    const id = accountCounter;
+    const div = document.createElement('div');
+    div.className = 'account-card';
+    div.id = `account-${id}`;
+    div.innerHTML = `
+        <button class="remove-btn" onclick="removeAccount(${id})">&times;</button>
+        <div class="form-row">
+            <div class="form-field">
+                <label>Owner Name</label>
+                <input type="text" placeholder="e.g. John" data-field="owner">
+            </div>
+            <div class="form-field">
+                <label>Account Type</label>
+                <select data-field="type" onchange="toggleJoint(${id})">
+                    <option value="Roth IRA">Roth IRA</option>
+                    <option value="Traditional IRA">Traditional IRA</option>
+                    <option value="Individual">Individual</option>
+                    <option value="Joint">Joint</option>
+                </select>
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-field joint-field hidden" id="joint-${id}">
+                <label>Second Owner</label>
+                <input type="text" placeholder="e.g. Jane" data-field="owner2">
+            </div>
+            <div class="form-field">
+                <label>Balance ($)</label>
+                <input type="number" min="0" step="1000" placeholder="500000" data-field="balance">
+            </div>
+        </div>
+    `;
+    document.getElementById('accounts-container').appendChild(div);
+}
+
+function removeAccount(id) {
+    const el = document.getElementById(`account-${id}`);
+    if (el) el.remove();
+}
+
+function toggleJoint(id) {
+    const card = document.getElementById(`account-${id}`);
+    const type = card.querySelector('[data-field="type"]').value;
+    const jointField = document.getElementById(`joint-${id}`);
+    jointField.classList.toggle('hidden', type !== 'Joint');
+}
+
+function getAccounts() {
+    const cards = document.querySelectorAll('.account-card');
+    const accounts = [];
+    cards.forEach(card => {
+        const owner = card.querySelector('[data-field="owner"]').value.trim() || 'Unnamed';
+        const type = card.querySelector('[data-field="type"]').value;
+        const owner2 = card.querySelector('[data-field="owner2"]')?.value.trim() || '';
+        const balance = parseFloat(card.querySelector('[data-field="balance"]').value) || 0;
+        const name = type === 'Joint' && owner2 ? `${owner} & ${owner2}` : owner;
+        if (balance > 0) {
+            accounts.push({ name, type, balance, remaining: balance });
+        }
+    });
+    return accounts;
+}
+
+function calculate() {
+    const riskEl = document.querySelector('input[name="risk"]:checked');
+    if (!riskEl) return;
+    const risk = parseInt(riskEl.value);
+    const accounts = getAccounts();
+    if (accounts.length === 0) return;
+
+    const total = accounts.reduce((s, a) => s + a.balance, 0);
+    const pcts = TARGET_PCT[risk];
+    const targets = pcts.map(p => total * p / 100);
+
+    // Sort accounts by priority
+    accounts.sort((a, b) => PRIORITY[a.type] - PRIORITY[b.type]);
+
+    // Reset remaining
+    accounts.forEach(a => a.remaining = a.balance);
+
+    // Allocate: strategies in order (most aggressive first = A..J)
+    const allocations = STRATEGIES.map(() => []);
+
+    for (let i = 0; i < STRATEGIES.length; i++) {
+        let need = targets[i];
+        if (need <= 0) continue;
+
+        for (const acct of accounts) {
+            if (need <= 0.005) break;
+            if (acct.remaining <= 0.005) continue;
+            const give = Math.min(need, acct.remaining);
+            allocations[i].push({
+                accountName: acct.name,
+                accountType: acct.type,
+                amount: give
+            });
+            acct.remaining -= give;
+            need -= give;
+        }
+    }
+
+    renderChart(pcts, targets);
+    renderTable(pcts, targets, allocations);
+
+    document.getElementById('chart-card').classList.remove('hidden');
+    document.getElementById('results-card').classList.remove('hidden');
+}
+
+function renderChart(pcts, targets) {
+    const ctx = document.getElementById('allocationChart').getContext('2d');
+    if (chartInstance) chartInstance.destroy();
+
+    const data = STRATEGIES.map((s, i) => targets[i]);
+    chartInstance = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: STRATEGIES.map(s => `Strategy ${s}`),
+            datasets: [{
+                data,
+                backgroundColor: COLORS,
+                borderWidth: 2,
+                borderColor: '#fff'
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { position: 'bottom', labels: { padding: 14, usePointStyle: true } },
+                tooltip: {
+                    callbacks: {
+                        label: ctx => {
+                            const val = ctx.parsed;
+                            const pct = pcts[ctx.dataIndex];
+                            return ` ${ctx.label}: ${fmt(val)} (${pct}%)`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+function renderTable(pcts, targets, allocations) {
+    const tbody = document.querySelector('#results-table tbody');
+    tbody.innerHTML = '';
+
+    for (let i = 0; i < STRATEGIES.length; i++) {
+        const strat = STRATEGIES[i];
+        const allocated = allocations[i].reduce((s, c) => s + c.amount, 0);
+        const threshold = THRESHOLDS[strat];
+
+        let statusHtml;
+        if (pcts[i] === 0) {
+            statusHtml = '<span class="status-skip">N/A</span>';
+        } else if (threshold && allocated > 0 && allocated < threshold) {
+            statusHtml = `<span class="status-warn">Below min ${fmt(threshold)}</span>`;
+        } else if (allocated > 0) {
+            statusHtml = '<span class="status-ok">&#10003;</span>';
+        } else {
+            statusHtml = '<span class="status-skip">--</span>';
+        }
+
+        const fundedHtml = allocations[i].length > 0
+            ? allocations[i].map(c =>
+                `<div class="funded-by-line">${esc(c.accountName)} (${c.accountType}): ${fmt(c.amount)}</div>`
+              ).join('')
+            : '<span class="funded-by-line">--</span>';
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td><span class="color-dot" style="background:${COLORS[i]}"></span>Strategy ${strat}</td>
+            <td>${pcts[i]}%</td>
+            <td>${fmt(targets[i])}</td>
+            <td>${fmt(allocated)}</td>
+            <td>${fundedHtml}</td>
+            <td>${statusHtml}</td>
+        `;
+        tbody.appendChild(tr);
+    }
+}
+
+function fmt(n) {
+    return '$' + Math.round(n).toLocaleString('en-US');
+}
+
+function esc(s) {
+    const d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+}
+
+// Start with one account
+addAccount();
+</script>
+</body>
+</html>
